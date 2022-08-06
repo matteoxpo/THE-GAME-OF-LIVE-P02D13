@@ -2,11 +2,12 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
+#include <unistd.h>
 
-#define N 80
-#define M 25
+#define N 5
+#define M 5
 #define LIFE "*"
-#define DEAD " "
+#define DEAD "-"
 
 // void gameMenu();
 void game();
@@ -14,13 +15,13 @@ int allocMemory(char ***matrix);
 void freeMemory(char **matrix);
 void generation(char **matrix);
 void resetField(char **matrix);
-void fieldUpdate(char ***matrix, char ***buff);
+int fieldUpdate(char ***matrix, char ***buff);
 int countAliveNeigh(char **matrix, int i, int j);
 void fieldOutput(char **matrix);
 int countAliveCells(char **matrix, int i, int j);
+int sameMatrix(char **matrix, char **buff);
 
 int main() {
-  srand(time(NULL));
   game();
   return 0;
 }
@@ -31,16 +32,26 @@ void game() {
   allocMemory(&matrix);
   allocMemory(&buff);
   generation(matrix);
-  fieldUpdate(&matrix, &buff);
-  printf("\n\n");
-  while (1) {
-    int x;
-    fieldUpdate(&matrix, &buff);
-    scanf("%d", &x);
+  printf("\n");
+  while (fieldUpdate(&matrix, &buff)) {
+    // int x;
+    // scanf("%d", &x);
     printf("\n-------------------------------------\n");
+    sleep(5);
     fieldOutput(matrix);
   }
 
+  /*
+    generation(matrix);
+    fieldOutput(matrix);
+    printf("\n---------------------------\n");
+    fieldUpdate(&matrix, &buff);
+    fieldOutput(matrix);
+    printf("\n---------------------------\n");
+    fieldUpdate(&matrix, &buff);
+    fieldOutput(matrix);
+    printf("\n---------------------------\n");
+    */
   freeMemory(matrix);
   freeMemory(buff);
 }
@@ -65,72 +76,64 @@ void freeMemory(char **matrix) {
   for (int i = 0; i < N; i++) free(matrix[i]);
   free(matrix);
 }
+
 void generation(char **matrix) {
   for (int i = 0; i < N; i++) {
     for (int j = 0; j < M; j++) {
-      int x = rand() % 2;
+      int x = i % 2;
       matrix[i][j] = x + '0';
+      printf("%c", matrix[i][j]);
     }
+    printf("\n");
   }
 }
-void fieldUpdate(char ***matrix, char ***buff) {
+
+int fieldUpdate(char ***matrix, char ***buff) {
+  int livCells = 0;
+  int changeFlag = 0;
+  int count;
+  int check = 1;
   for (int i = 0; i < N; i++) {
     for (int j = 0; j < M; j++) {
-      int count = countAliveCells(*matrix, i, j);
-      if (count == 2 || count == 3)
-        (*buff)[i][j] = '1';
-      else
-        (*buff)[i][j] = '0';
+      count = countAliveCells(*matrix, i, j);
+      livCells += count;
+      if ((*matrix)[i][j] == '1') {
+        if (count != 2 && count != 3) {
+          (*buff)[i][j] = '0';
+          changeFlag = 1;
+        } else {
+          (*buff)[i][j] = '1';
+        }
+      } else {
+        if (count == 3) {
+          (*buff)[i][j] = '1';
+          changeFlag = 1;
+        } else {
+          (*buff)[i][j] = '0';
+        }
+      }
     }
   }
   char **temp = *matrix;
   *matrix = *buff;
   *buff = temp;
+  if (livCells == 0 || changeFlag == 0) check = 0;
+
+  return check;
 }
 
 int countAliveCells(char **matrix, int i, int j) {
   int count = 0;
   for (int istep = -1; istep <= 1; istep++) {
     for (int jstep = -1; jstep <= 1; jstep++) {
-      if (istep == jstep == 0) continue;
-      if (matrix[(N + i + istep) % N][(M + j + jstep) % M] == '1') count++;
+      if (istep == 0 && jstep == 0) {
+      } else {
+        if (matrix[(N + i + istep % N) % N][(M + j + jstep % M) % M] == '1')
+          count++;
+      }
     }
   }
   return count;
-}
-
-int countAliveNeigh(char **matrix, int i, int j) {
-  int count = 0;
-  if (matrix[(N + i + 1) % N][(M + j) % M] == '1') {
-    count++;
-  }
-  if (matrix[(N + i - 1) % N][(M + j) % M] == '1') {
-    count++;
-  }
-  if (matrix[(N + i) % N][(M + j + 1) % M] == '1') {
-    count++;
-  }
-  if (matrix[(N + i) % N][(M + j - 1) % M] == '1') {
-    count++;
-  }
-  if (matrix[(N + i + 1) % N][(M + j + 1) % M] == '1') {
-    count++;
-  }
-  if (matrix[(N + i - 1) % N][(M + j - 1) % M] == '1') {
-    count++;
-  }
-  if (matrix[(N + i + 1) % N][(M + j - 1) % M] == '1') {
-    count++;
-  }
-  if (matrix[(N + i - 1) % N][(M + j + 1) % M] == '1') {
-    count++;
-  }
-  return count;
-}
-
-void resetField(char **matrix) {
-  for (int i = 0; i < N; i++)
-    for (int j = 0; j < M; j++) matrix[i][j] = '0';
 }
 
 void fieldOutput(char **matrix) {
@@ -138,12 +141,18 @@ void fieldOutput(char **matrix) {
     for (int j = 0; j < M; j++) {
       if (matrix[i][j] == '1') {
         printf(LIFE);
-        if (j != M - 1) printf(" ");
       } else {
         printf(DEAD);
-        if (j != M - 1) printf(" ");
       }
     }
     if (i != N - 1) printf("\n");
   }
+}
+
+int sameMatrix(char **matrix, char **buff) {
+  int check = 1;
+  for (int i = 0; i < N; i++)
+    for (int j = 0; j < M; j++)
+      if (matrix[i][j] != buff[i][j]) check = 0;
+  return check;
 }
