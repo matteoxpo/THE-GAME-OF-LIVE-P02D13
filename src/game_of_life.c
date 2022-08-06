@@ -5,7 +5,7 @@
 #include <time.h>
 #include <unistd.h>
 
-#define N 45
+#define N 25
 #define M 80
 #define LIFE "*"
 #define DEAD " "
@@ -15,22 +15,23 @@ void printMenuOptions();
 void printAboutGame();
 void saveScan(int *command);
 int corrrectCommand(int command);
+void inputRules();
+
 void game(int mode);
 int allocMemory(char ***matrix);
 void freeMemory(char **matrix);
 void changeStream(int mode);
-void inputRules();
 void generation(char **matrix);
 void resetField(char **matrix);
 int fieldUpdate(char ***matrix, char ***buff);
 int countAliveNeigh(char **matrix, int i, int j);
 void fieldOutput(char **matrix);
+void fieldOutput1(char **matrix, WINDOW *win);
 int countAliveCells(char **matrix, int i, int j);
 int sameMatrix(char **matrix, char **buff);
 
 int main() {
-  // initscr();
-  game_menu();
+  gameMenu();
   return 0;
 }
 
@@ -49,9 +50,11 @@ void gameMenu() {
 }
 void printMenuOptions() {
   printf("1 - пользовательский ввод игры\n");
-  printf("2 - запустить карту gunGospy\n");
-  printf("3 - запустить карту gunSim\n");
-  printf("4 - запустить карту agar\n");
+  printf("2 - запустить карту cow\n");
+  printf("3 - запустить карту gunGospy\n");
+  printf("4 - запустить карту gunSim\n");
+  printf("5 - запустить карту agar\n");
+  printf("6 - запустить карту shipNew\n");
 }
 
 void printAboutGame() {
@@ -89,22 +92,39 @@ void game(int mode) {
 
   allocMemory(&matrix);
   allocMemory(&buff);
-
   changeStream(mode);
   generation(matrix);
   stdin = freopen("/dev/tty", "r", stdin);
-  fieldOutput(matrix);
-  printf("\n");
+
+  initscr();
+  cbreak();
+  noecho();
+  keypad(stdscr, true);
+  nodelay(stdscr, true);
+  WINDOW *win = newwin(N + 1, M + 1, 0, 0);
+  wrefresh(win);
+  wrefresh(win);
+  werase(win);
+
+  fieldOutput1(matrix, win);
+  wrefresh(win);
+  printw("\n");
   while (fieldUpdate(&matrix, &buff)) {
+    werase(win);
     int sleepParam = 100000;
-    fieldOutput(matrix);
+
+    fieldOutput1(matrix, win);
     usleep(sleepParam);
-    printf("\n");
-    printf("\033[0d\033[2J");
+
+    printw("\n");
+
+    wrefresh(win);
   }
 
   freeMemory(matrix);
   freeMemory(buff);
+
+  endwin();
 }
 
 void changeStream(int mode) {
@@ -158,7 +178,8 @@ void generation(char **matrix) {
   for (int i = 0; i < N; i++) {
     for (int j = 0; j < M; j++) {
       char c;
-      scanf("%c", &c);
+      scanf("%c ", &c);
+
       if (c == '-') c = '0';
       if (c == 'o') c = '1';
       matrix[i][j] = c;
@@ -224,5 +245,21 @@ void fieldOutput(char **matrix) {
       }
     }
     if (i != N - 1) printf("\n");
+  }
+}
+
+void fieldOutput1(char **matrix, WINDOW *win) {
+  for (int i = 0; i < N; i++) {
+    for (int j = 0; j < M; j++) {
+      if (matrix[i][j] == '1') {
+        mvwprintw(win, i, j, LIFE);
+        printw(LIFE);
+      } else {
+        mvwprintw(win, i, j, DEAD);
+        //  mvwprintw(win, i, j, DEAD);
+        // printw(DEAD);
+      }
+    }
+    // if (i != N - 1) printw("\n");
   }
 }
