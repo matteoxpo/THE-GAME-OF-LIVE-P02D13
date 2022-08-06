@@ -1,10 +1,11 @@
 #include <math.h>
+#include <ncurses.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
 #include <unistd.h>
 
-#define N 25
+#define N 45
 #define M 80
 #define LIFE "*"
 #define DEAD " "
@@ -13,9 +14,12 @@ void gameMenu();
 void printMenuOptions();
 void printAboutGame();
 void saveScan(int *command);
+int corrrectCommand(int command);
 void game(int mode);
 int allocMemory(char ***matrix);
 void freeMemory(char **matrix);
+void changeStream(int mode);
+void inputRules();
 void generation(char **matrix);
 void resetField(char **matrix);
 int fieldUpdate(char ***matrix, char ***buff);
@@ -25,21 +29,21 @@ int countAliveCells(char **matrix, int i, int j);
 int sameMatrix(char **matrix, char **buff);
 
 int main() {
-  game(1);
+  // initscr();
+  game_menu();
   return 0;
 }
 
 void gameMenu() {
-  int check = 0;
-  int command;
+  int command = -1;
+  printMenuOptions();
   while (1) {
-    printMenuOptions();
     saveScan(&command);
-    switch (command) {
-      case 1:
-        break;
-      case 2:
-        break;
+    if (corrrectCommand(command)) {
+      game(command);
+      break;
+    } else {
+      printf("Неизвестная команда.\n");
     }
   }
 }
@@ -76,20 +80,25 @@ void saveScan(int *command) {
     }
   }
 }
-
+int corrrectCommand(int command) {
+  return command >= 1 && command <= 6 ? 1 : 0;
+}
 void game(int mode) {
   char **matrix;
   char **buff;
+
   allocMemory(&matrix);
   allocMemory(&buff);
+
+  changeStream(mode);
   generation(matrix);
+  stdin = freopen("/dev/tty", "r", stdin);
   fieldOutput(matrix);
   printf("\n");
   while (fieldUpdate(&matrix, &buff)) {
-    // break;
-    // printf("\n000000000000\n");
+    int sleepParam = 100000;
     fieldOutput(matrix);
-    usleep(1000000);
+    usleep(sleepParam);
     printf("\n");
     printf("\033[0d\033[2J");
   }
@@ -98,6 +107,32 @@ void game(int mode) {
   freeMemory(buff);
 }
 
+void changeStream(int mode) {
+  switch (mode) {
+    case 1:
+      inputRules();
+      break;
+    case 2:
+      stdin = freopen("./presets/cow.txt", "r", stdin);
+      break;
+    case 3:
+      stdin = freopen("./presets/gunGospy.txt", "r", stdin);
+      break;
+    case 4:
+      stdin = freopen("./presets/gunSim.txt", "r", stdin);
+      break;
+    case 5:
+      stdin = freopen("./presets/agar.txt", "r", stdin);
+      break;
+    case 6:
+      stdin = freopen("./presets/shipNew.txt", "r", stdin);
+      break;
+  }
+}
+void inputRules() {
+  printf("Корректный ввод мертвой клетки: 0 или - \n");
+  printf("Корректный ввод живой клетки: 1 или  o \n");
+}
 int allocMemory(char ***matrix) {
   int check = 1;
   (*matrix) = malloc(N * sizeof(char *));
@@ -123,7 +158,7 @@ void generation(char **matrix) {
   for (int i = 0; i < N; i++) {
     for (int j = 0; j < M; j++) {
       char c;
-      scanf(" %c", &c);
+      scanf("%c", &c);
       if (c == '-') c = '0';
       if (c == 'o') c = '1';
       matrix[i][j] = c;
