@@ -9,10 +9,10 @@
 #define M 80
 #define LIFE "*"
 #define DEAD " "
-#define MAXSPEED -80000
-#define MINSPEED 0
-#define ITERSPEED 2000
-#define STARTSPEED 100000
+#define MAXSPEED 1
+#define MINSPEED 1000000
+#define ITERSPEED 10000
+#define STARTSPEED 100001
 
 void gameMenu();
 void printMenuOptions();
@@ -110,23 +110,27 @@ void game(int mode) {
   wrefresh(win);
   wrefresh(win);
   werase(win);
-  int speed = MINSPEED;
+  int speed = STARTSPEED;
 
   fieldOutput1(matrix, win);
   wrefresh(win);
   printw("\n");
-  char button;
+  char button = '\0';
   while (fieldUpdate(&matrix, &buff)) {
     werase(win);
     fieldOutput1(matrix, win);
     halfdelay(1);
     button = wgetch(win);
+    if (button == 'q' || button == 'Q') {
+      break;
+    }
     changeSpeed(button, &speed);
-    usleep(STARTSPEED + speed);
+    usleep(speed);
 
     printw("\n");
 
     wrefresh(win);
+    
   }
 
   freeMemory(matrix);
@@ -273,10 +277,10 @@ void fieldOutput1(char **matrix, WINDOW *win) {
 }
 
 void changeSpeed(char button, int *speed) {
-  if (*speed <= MINSPEED && (button == 'a' || button == 'A')) {
+  if (*speed > MAXSPEED && (button == 'a' || button == 'A')) {
     *speed -= ITERSPEED;
   }
-  if (*speed >= MAXSPEED && (button == 'z' || button == 'Z')) {
+  if (*speed < MINSPEED && (button == 'z' || button == 'Z')) {
     *speed += ITERSPEED;
   }
 }
