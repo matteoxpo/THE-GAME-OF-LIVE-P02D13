@@ -17,7 +17,6 @@ void gameMenu();
 void printMenuOptions();
 void printAboutGame();
 void saveScan(int *command);
-int corrrectCommand(int command);
 void inputRules();
 void game(int mode);
 void changeStream(int mode);
@@ -31,8 +30,9 @@ void fieldOutput(char **matrix, WINDOW *win);
 void changeSpeed(char button, float *speed);
 
 int main() {
-  //signal(SIGINT, SIG_IGN);
-  //signal(SIGTSTP, SIG_IGN);
+  signal(SIGINT, SIG_IGN);
+  signal(SIGTSTP, SIG_IGN);
+  signal(SIGQUIT, SIG_IGN);
   gameMenu();
   return 0;
 }
@@ -41,15 +41,8 @@ void gameMenu() {
   int command = -1;
   printAboutGame();
   printMenuOptions();
-  while (1) {
-    saveScan(&command);
-    if (corrrectCommand(command)) {
-      game(command);
-      break;
-    } else {
-      printf("Неизвестная команда.\n");
-    }
-  }
+  saveScan(&command);
+  game(command);
 }
 
 void printMenuOptions() {
@@ -83,12 +76,13 @@ void saveScan(int *command) {
     check = scanf("%d", command);
     if (!check) {
       printf("Ошибка ввода, попробуем снова.\n");
+      getchar();
+    } else if (*command < 1 || *command > 6) {
+      printf("Неизвестная комманда, попробуем снова.\n");
+      check = 0;
+      stdin = freopen("/dev/tty", "r", stdin);
     }
   }
-}
-
-int corrrectCommand(int command) {
-  return (command >= 1 && command <= 6) ? 1 : 0;
 }
 
 void inputRules() {
@@ -155,8 +149,11 @@ int allocMemory(char ***matrix) {
   if (*matrix != NULL) {
     for (int i = 0; i < HEIGHT; i++) {
       (*matrix)[i] = malloc(LENGTH * sizeof(char));
-      if ((*matrix)[i] == NULL) { // добавить free в случае ошибки
+      if ((*matrix)[i] == NULL) {
         check = 0;
+        for (int j = 0; j < i; j++) 
+          free((*matrix)[i]);
+        free(matrix);
         break;
       }
     }
