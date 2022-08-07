@@ -9,6 +9,10 @@
 #define M 80
 #define LIFE "*"
 #define DEAD " "
+#define MAXSPEED -80000
+#define MINSPEED 0
+#define ITERSPEED 2000
+#define STARTSPEED 100000
 
 void gameMenu();
 void printMenuOptions();
@@ -29,6 +33,7 @@ void fieldOutput(char **matrix);
 void fieldOutput1(char **matrix, WINDOW *win);
 int countAliveCells(char **matrix, int i, int j);
 int sameMatrix(char **matrix, char **buff);
+void changeSpeed(char button, int *speed);
 
 int main() {
   gameMenu();
@@ -101,20 +106,23 @@ void game(int mode) {
   noecho();
   keypad(stdscr, true);
   nodelay(stdscr, true);
-  WINDOW *win = newwin(N + 1, M + 1, 0, 0);
+  WINDOW *win = newwin(N, M, 0, 0);
   wrefresh(win);
   wrefresh(win);
   werase(win);
+  int speed = MINSPEED;
 
   fieldOutput1(matrix, win);
   wrefresh(win);
   printw("\n");
+  char button;
   while (fieldUpdate(&matrix, &buff)) {
     werase(win);
-    int sleepParam = 100000;
-
     fieldOutput1(matrix, win);
-    usleep(sleepParam);
+    halfdelay(1);
+    button = wgetch(win);
+    changeSpeed(button, &speed);
+    usleep(STARTSPEED + speed);
 
     printw("\n");
 
@@ -227,7 +235,7 @@ int countAliveCells(char **matrix, int i, int j) {
     for (int jstep = -1; jstep <= 1; jstep++) {
       if (istep == 0 && jstep == 0) {
       } else {
-        if (matrix[(N + i + istep % N) % N][(M + j + jstep % M) % M] == '1')
+        if (matrix[(N + i + istep) % N][(M + j + jstep) % M] == '1')
           count++;
       }
     }
@@ -261,5 +269,14 @@ void fieldOutput1(char **matrix, WINDOW *win) {
       }
     }
     // if (i != N - 1) printw("\n");
+  }
+}
+
+void changeSpeed(char button, int *speed) {
+  if (*speed <= MINSPEED && (button == 'a' || button == 'A')) {
+    *speed -= ITERSPEED;
+  }
+  if (*speed >= MAXSPEED && (button == 'z' || button == 'Z')) {
+    *speed += ITERSPEED;
   }
 }
