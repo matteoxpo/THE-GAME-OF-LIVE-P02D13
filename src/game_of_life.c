@@ -9,10 +9,10 @@
 #define M 80
 #define LIFE "*"
 #define DEAD " "
-#define MAXSPEED 1
-#define MINSPEED 1000000
-#define ITERSPEED 10000
-#define STARTSPEED 100001
+#define MAXSPEED 1.9
+#define MINSPEED 0.1
+#define ITERSPEED 0.1
+#define STARTSPEED 100000
 
 void gameMenu();
 void printMenuOptions();
@@ -33,7 +33,7 @@ void fieldOutput(char **matrix);
 void fieldOutput1(char **matrix, WINDOW *win);
 int countAliveCells(char **matrix, int i, int j);
 int sameMatrix(char **matrix, char **buff);
-void changeSpeed(char button, int *speed);
+void changeSpeed(char button, float *speed);
 
 int main() {
   gameMenu();
@@ -102,30 +102,33 @@ void game(int mode) {
   stdin = freopen("/dev/tty", "r", stdin);
 
   initscr();
-  cbreak();
+  
   noecho();
   keypad(stdscr, true);
   nodelay(stdscr, true);
   WINDOW *win = newwin(N, M, 0, 0);
+  
   wrefresh(win);
   wrefresh(win);
   werase(win);
-  int speed = STARTSPEED;
+  float speed = 1.0f;
 
   fieldOutput1(matrix, win);
   wrefresh(win);
   printw("\n");
   char button = '\0';
+  raw();
   while (fieldUpdate(&matrix, &buff)) {
     werase(win);
     fieldOutput1(matrix, win);
+    mvwprintw(win, 24, 5, "Speed: x%.1f", 2.0 - speed);
     halfdelay(1);
     button = wgetch(win);
     if (button == 'q' || button == 'Q') {
       break;
     }
     changeSpeed(button, &speed);
-    usleep(speed);
+    usleep(STARTSPEED * speed);
 
     printw("\n");
 
@@ -276,11 +279,11 @@ void fieldOutput1(char **matrix, WINDOW *win) {
   }
 }
 
-void changeSpeed(char button, int *speed) {
-  if (*speed > MAXSPEED && (button == 'a' || button == 'A')) {
+void changeSpeed(char button, float *speed) {
+  if (*speed > MINSPEED && (button == 'a' || button == 'A')) {
     *speed -= ITERSPEED;
   }
-  if (*speed < MINSPEED && (button == 'z' || button == 'Z')) {
+  if (*speed < MAXSPEED && (button == 'z' || button == 'Z')) {
     *speed += ITERSPEED;
   }
 }
