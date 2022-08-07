@@ -1,4 +1,5 @@
 #include <ncurses.h>
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -19,19 +20,19 @@ void saveScan(int *command);
 int corrrectCommand(int command);
 void inputRules();
 void game(int mode);
+void changeStream(int mode);
 int allocMemory(char ***matrix);
 void freeMemory(char **matrix);
-void changeStream(int mode);
-void generation(char **matrix);
-void resetField(char **matrix);
+void fieldCreation(char **matrix);
 int fieldUpdate(char ***matrix, char ***buff);
-int countAliveNeigh(char **matrix, int i, int j);
-void fieldOutput(char **matrix, WINDOW *win);
 int countAliveCells(char **matrix, int i, int j);
-int sameMatrix(char **matrix, char **buff);
+char cellUpdate(char cell, int count, int *changeFlag);
+void fieldOutput(char **matrix, WINDOW *win);
 void changeSpeed(char button, float *speed);
 
 int main() {
+  //signal(SIGINT, SIG_IGN);
+  //signal(SIGTSTP, SIG_IGN);
   gameMenu();
   return 0;
 }
@@ -50,6 +51,7 @@ void gameMenu() {
     }
   }
 }
+
 void printMenuOptions() {
   printf("1 - пользовательский ввод игры\n");
   printf("2 - запустить карту cow\n");
@@ -61,16 +63,14 @@ void printMenuOptions() {
 
 void printAboutGame() {
   printf("Игра в жизнь\n");
-  printf(
-      "Место действия игры — размеченная на клетки плоскость, которая может "
-      "быть безграничной, ограниченной, или замкнутой.\n");
-  printf("В нашем случае поле %d на %d размером и сфеерически замкнута.\n", HEIGHT,
-         LENGTH);
-  printf(
-      "Каждая клетка на этой поверхности имеет восемь соседей, окружающих "
-      "её, "
-      "и может находиться в двух состояниях: быть «живой» (заполненной) или "
-      "«мёртвой» (пустой).\n");
+  printf("Место действия игры — размеченная на клетки плоскость, которая может "
+         "быть безграничной, ограниченной, или замкнутой.\n");
+  printf("В нашем случае поле %d на %d размером и сферически замкнута.\n",
+         HEIGHT, LENGTH);
+  printf("Каждая клетка на этой поверхности имеет восемь соседей, окружающих "
+         "её, "
+         "и может находиться в двух состояниях: быть «живой» (заполненной) или "
+         "«мёртвой» (пустой).\n");
   printf("Игра прекращается, если\n");
   printf("* на поле не останется ни одной «живой» клетки\n");
   printf("* при очередном шаге ни одна из клеток не меняет своего состояния\n");
@@ -91,6 +91,11 @@ int corrrectCommand(int command) {
   return (command >= 1 && command <= 6) ? 1 : 0;
 }
 
+void inputRules() {
+  printf("Корректный ввод мертвой клетки: 0 или - \n");
+  printf("Корректный ввод живой клетки: 1 или  o \n");
+}
+
 void game(int mode) {
   char **matrix;
   char **buff;
@@ -99,7 +104,7 @@ void game(int mode) {
   allocMemory(&matrix);
   allocMemory(&buff);
   changeStream(mode);
-  generation(matrix);
+  fieldCreation(matrix);
   stdin = freopen("/dev/tty", "r", stdin);
   initscr();
   noecho();
@@ -123,37 +128,34 @@ void game(int mode) {
 
 void changeStream(int mode) {
   switch (mode) {
-    case 1:
-      inputRules();
-      break;
-    case 2:
-      stdin = freopen("./presets/cow.txt", "r", stdin);
-      break;
-    case 3:
-      stdin = freopen("./presets/gunGospy.txt", "r", stdin);
-      break;
-    case 4:
-      stdin = freopen("./presets/gunSim.txt", "r", stdin);
-      break;
-    case 5:
-      stdin = freopen("./presets/agar.txt", "r", stdin);
-      break;
-    case 6:
-      stdin = freopen("./presets/shipNew.txt", "r", stdin);
-      break;
+  case 1:
+    inputRules();
+    break;
+  case 2:
+    stdin = freopen("./presets/cow.txt", "r", stdin);
+    break;
+  case 3:
+    stdin = freopen("./presets/gunGospy.txt", "r", stdin);
+    break;
+  case 4:
+    stdin = freopen("./presets/gunSim.txt", "r", stdin);
+    break;
+  case 5:
+    stdin = freopen("./presets/agar.txt", "r", stdin);
+    break;
+  case 6:
+    stdin = freopen("./presets/shipNew.txt", "r", stdin);
+    break;
   }
 }
-void inputRules() {
-  printf("Корректный ввод мертвой клетки: 0 или - \n");
-  printf("Корректный ввод живой клетки: 1 или  o \n");
-}
+
 int allocMemory(char ***matrix) {
   int check = 1;
   (*matrix) = malloc(HEIGHT * sizeof(char *));
   if (*matrix != NULL) {
     for (int i = 0; i < HEIGHT; i++) {
       (*matrix)[i] = malloc(LENGTH * sizeof(char));
-      if ((*matrix)[i] == NULL) {
+      if ((*matrix)[i] == NULL) { // добавить free в случае ошибки
         check = 0;
         break;
       }
@@ -163,18 +165,22 @@ int allocMemory(char ***matrix) {
   }
   return check;
 }
+
 void freeMemory(char **matrix) {
-  for (int i = 0; i < HEIGHT; i++) free(matrix[i]);
+  for (int i = 0; i < HEIGHT; i++)
+    free(matrix[i]);
   free(matrix);
 }
 
-void generation(char **matrix) {
+void fieldCreation(char **matrix) {
   for (int i = 0; i < HEIGHT; i++) {
     for (int j = 0; j < LENGTH; j++) {
       char c;
       scanf("%c ", &c);
-      if (c == '-') c = '0';
-      if (c == 'o') c = '1';
+      if (c == '-')
+        c = '0';
+      if (c == 'o')
+        c = '1';
       matrix[i][j] = c;
     }
   }
@@ -189,27 +195,14 @@ int fieldUpdate(char ***matrix, char ***buff) {
     for (int j = 0; j < LENGTH; j++) {
       count = countAliveCells(*matrix, i, j);
       livCells += count;
-      if ((*matrix)[i][j] == '1') {
-        if (count != 2 && count != 3) {
-          (*buff)[i][j] = '0';
-          changeFlag = 1;
-        } else {
-          (*buff)[i][j] = '1';
-        }
-      } else {
-        if (count == 3) {
-          (*buff)[i][j] = '1';
-          changeFlag = 1;
-        } else {
-          (*buff)[i][j] = '0';
-        }
-      }
+      (*buff)[i][j] = cellUpdate((*matrix)[i][j], count, &changeFlag);
     }
   }
   char **temp = *matrix;
   *matrix = *buff;
   *buff = temp;
-  if (livCells == 0 || changeFlag == 0) check = 0;
+  if (livCells == 0 || changeFlag == 0)
+    check = 0;
   return check;
 }
 
@@ -217,14 +210,33 @@ int countAliveCells(char **matrix, int i, int j) {
   int count = 0;
   for (int istep = -1; istep <= 1; istep++) {
     for (int jstep = -1; jstep <= 1; jstep++) {
-      if (istep == 0 && jstep == 0) {
-      } else {
-        if (matrix[(HEIGHT + i + istep) % HEIGHT][(LENGTH + j + jstep) % LENGTH] == '1')
-          count++;
-      }
+      if ((matrix[(HEIGHT + i + istep) % HEIGHT]
+                 [(LENGTH + j + jstep) % LENGTH] == '1') &&
+          !(istep == 0 && jstep == 0))
+        count++;
     }
   }
   return count;
+}
+
+char cellUpdate(char cell, int count, int *changeFlag) {
+  char newCell;
+  if (cell == '1') {
+    if (count != 2 && count != 3) {
+      newCell = '0';
+      *changeFlag = 1;
+    } else {
+      newCell = '1';
+    }
+  } else {
+    if (count == 3) {
+      newCell = '1';
+      *changeFlag = 1;
+    } else {
+      newCell = '0';
+    }
+  }
+  return newCell;
 }
 
 void fieldOutput(char **matrix, WINDOW *win) {
